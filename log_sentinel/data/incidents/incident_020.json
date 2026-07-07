@@ -1,0 +1,12 @@
+{
+  "id": "INC-020",
+  "title": "Log4Shell-style error storm from malformed input triggering exception flood",
+  "date": "2025-04-28",
+  "service": "python_app",
+  "severity": "CRITICAL",
+  "symptoms": "Error rate jumped from 1% to 55% in 90 seconds. Logs flooded with: ValueError: malformed log format string in user-agent header. Exception traceback repeated 50,000 times/minute. Application CPU at 100% processing exception logging. Log files growing at 500MB/minute.",
+  "root_cause": "A malformed User-Agent header containing ${jndi:ldap://...} strings was being passed to Python's logging.debug() which attempted string interpolation. This caused a ValueError exception on every request from that scanner IP (200 req/s). Each exception generated a full 40-line traceback written to disk.",
+  "fix_applied": "1. Blocked scanner IP range at nginx level: deny 185.220.0.0/16. 2. Changed logging to use lazy formatting: logger.debug('%s', user_agent) not logger.debug(f'{user_agent}'). 3. Added input sanitization to strip non-printable characters from headers. 4. Set log rate limiting: max 1000 identical exceptions/minute per logger. 5. Added WAF rule to block JNDI lookup patterns in headers.",
+  "time_to_resolve_minutes": 12,
+  "tags": ["log4shell", "injection", "error-storm", "input-validation", "rate-limiting", "security"]
+}

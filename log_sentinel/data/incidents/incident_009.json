@@ -1,0 +1,12 @@
+{
+  "id": "INC-009",
+  "title": "Infinite loop in background worker consuming 100% CPU",
+  "date": "2025-04-10",
+  "service": "python_app",
+  "severity": "CRITICAL",
+  "symptoms": "All 8 CPU cores at 100% utilization. System load average: 32. Response times > 30s for all requests. Logs: WARNING CPU throttling detected. Process list showing Python worker consuming 99.8% CPU. New requests timing out immediately.",
+  "root_cause": "A while loop in the email retry worker had a bug where the break condition was never reached when the email service returned a specific error code (429 Too Many Requests). The worker was retrying in a tight loop with no backoff, consuming all CPU resources.",
+  "fix_applied": "1. Killed runaway process: kill -9 <pid>. 2. Fixed retry logic to use exponential backoff: 1s, 2s, 4s, 8s, max 60s. 3. Added max retry count of 10. 4. Implemented CPU usage alert at 90% per process. 5. Added circuit breaker for external email service calls.",
+  "time_to_resolve_minutes": 7,
+  "tags": ["infinite-loop", "cpu", "retry-logic", "worker", "backoff"]
+}

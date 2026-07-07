@@ -1,0 +1,12 @@
+{
+  "id": "INC-006",
+  "title": "SSL certificate expiry causing HTTPS failures",
+  "date": "2025-01-14",
+  "service": "nginx",
+  "severity": "HIGH",
+  "symptoms": "Browser showing NET::ERR_CERT_DATE_INVALID. Nginx error log: SSL_CTX_use_certificate_file failed (SSL: error:0B080074:x509 certificate routines). API clients receiving: requests.exceptions.SSLError: certificate verify failed. 100% of HTTPS traffic failing.",
+  "root_cause": "The Let's Encrypt certificate for api.company.com expired. The auto-renewal cron job (certbot renew) had been silently failing for 30 days because the user running certbot lacked write permissions to the /etc/letsencrypt directory after an OS security update changed file ownership.",
+  "fix_applied": "1. Manually renewed certificate: certbot certonly --webroot. 2. Reloaded nginx: nginx -s reload. 3. Fixed certbot cron job permissions: chown -R certbot:certbot /etc/letsencrypt. 4. Added certificate expiry monitoring alert at 30 and 7 days. 5. Documented renewal runbook.",
+  "time_to_resolve_minutes": 12,
+  "tags": ["ssl", "certificate", "lets-encrypt", "nginx", "expiry", "cron"]
+}

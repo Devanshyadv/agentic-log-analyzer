@@ -1,0 +1,12 @@
+{
+  "id": "INC-014",
+  "title": "External API rate limit hit causing feature degradation",
+  "date": "2025-01-30",
+  "service": "python_app",
+  "severity": "HIGH",
+  "symptoms": "Logs showing: requests.exceptions.HTTPError: 429 Too Many Requests from payment-api.external.com. Payment processing failing for 40% of checkouts. No retry logic in payment service. Error rate climbing as retries compound the rate limit problem.",
+  "root_cause": "A marketing promotion tripled checkout traffic. The payment gateway has a rate limit of 100 requests/second. Our payment service was making 3 API calls per checkout (validate, charge, confirm) with no rate limiting. At 40 checkouts/second: 120 API calls/second, exceeding the limit.",
+  "fix_applied": "1. Implemented token bucket rate limiter: max 90 req/s to payment API. 2. Added exponential backoff with jitter on 429 responses. 3. Implemented request batching for validation calls. 4. Contacted payment provider to increase rate limit. 5. Added circuit breaker to fail gracefully under sustained 429s.",
+  "time_to_resolve_minutes": 30,
+  "tags": ["rate-limiting", "payment", "external-api", "429", "circuit-breaker"]
+}

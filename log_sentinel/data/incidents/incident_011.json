@@ -1,0 +1,12 @@
+{
+  "id": "INC-011",
+  "title": "DNS resolution failure causing service discovery breakdown",
+  "date": "2025-02-18",
+  "service": "system",
+  "severity": "HIGH",
+  "symptoms": "socket.gaierror: [Errno -2] Name or service not known. All inter-service HTTP calls failing with connection refused. Services unable to discover each other via hostname. External API calls returning: requests.exceptions.ConnectionError: HTTPSConnectionPool: Max retries exceeded.",
+  "root_cause": "The internal DNS server (10.0.0.53) ran out of file descriptors after a DNS amplification attack filled its connection table. The DNS service became unresponsive but the process was still running, causing health checks to pass. All service hostnames resolved to null.",
+  "fix_applied": "1. Restarted BIND DNS service on internal servers. 2. Increased file descriptor limits in /etc/security/limits.conf. 3. Added secondary DNS failover configuration. 4. Implemented DNS response time monitoring. 5. Added rate limiting on DNS queries to prevent amplification.",
+  "time_to_resolve_minutes": 14,
+  "tags": ["dns", "service-discovery", "file-descriptors", "networking"]
+}

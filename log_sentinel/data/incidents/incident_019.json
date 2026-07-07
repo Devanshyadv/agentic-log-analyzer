@@ -1,0 +1,12 @@
+{
+  "id": "INC-019",
+  "title": "gRPC connection timeout causing microservice cascade failure",
+  "date": "2025-03-30",
+  "service": "python_app",
+  "severity": "HIGH",
+  "symptoms": "Logs: grpc._channel._InactiveRpcError: StatusCode.DEADLINE_EXCEEDED. Inventory service calls timing out after 5s. Order service error rate at 40% due to inventory check failures. P99 latency: 8000ms. Total gRPC timeout errors: 2000/minute.",
+  "root_cause": "The inventory service was upgraded and a new database index was being built in the background on the inventory table (42M rows). The index build held a brief lock during metadata updates causing query times to spike from 50ms to 6000ms. The gRPC deadline was set to 5s with no retry.",
+  "fix_applied": "1. Rolled back inventory service to previous version. 2. Rebuilt index using CREATE INDEX CONCURRENTLY (no locking). 3. Increased gRPC deadline to 15s with retry on DEADLINE_EXCEEDED. 4. Implemented circuit breaker: fail fast after 50% errors in 10s window. 5. Added inventory service latency SLO alert at P99 > 500ms.",
+  "time_to_resolve_minutes": 29,
+  "tags": ["grpc", "timeout", "cascade-failure", "database-index", "circuit-breaker"]
+}

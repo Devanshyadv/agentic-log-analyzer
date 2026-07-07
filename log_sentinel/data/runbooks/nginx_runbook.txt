@@ -1,0 +1,90 @@
+NGINX TROUBLESHOOTING RUNBOOK
+==============================
+
+## Log Locations
+- Access log: /var/log/nginx/access.log
+- Error log:  /var/log/nginx/error.log
+- Custom app logs: /var/log/nginx/<site>.access.log
+
+## Immediate Triage Commands
+
+# Check nginx is running
+systemctl status nginx
+
+# Tail error log in real time
+tail -f /var/log/nginx/error.log
+
+# Count 5xx errors in last 5 minutes (requires gawk)
+awk -v d="$(date +'%d/%b/%Y:%H:%M' --date='5 minutes ago')" '$4 > "["d && $9 ~ /^5/' /var/log/nginx/access.log | wc -l
+
+# Check active connections
+nginx -V 2>&1 | grep -o 'worker_connections=[0-9]*'
+cat /proc/$(pgrep -f 'nginx: master')/status | grep Threads
+
+# Test config before reload
+nginx -t
+
+# Reload config (zero downtime)
+nginx -s reload
+
+## Common Error Patterns
+
+### 502 Bad Gateway
+Cause: Upstream application is down or not responding
+Fix:
+  1. Check if upstream is running: systemctl status gunicorn
+  2. Check upstream port: ss -tlnp | grep :8000
+  3. Verify proxy_pass address in nginx config
+  4. Check upstream error logs: journalctl -u gunicorn -n 50
+  5. Temporarily increase proxy timeout: proxy_read_timeout 120s;
+
+### 504 Gateway Timeout
+Cause: Upstream responding too slowly
+Fix:
+  1. Check upstream response time: curl -w "%{time_total}" http://localhost:8000/health
+  2. Look for slow queries in app logs
+  3. Check server load: uptime && top -bn1
+  4. Increase timeout: proxy_read_timeout 90s; proxy_send_timeout 90s;
+  5. Consider upstream health checks with fail_timeout
+
+### 503 Service Unavailable
+Cause: All upstream servers marked down by nginx
+Fix:
+  1. Check upstream block status in nginx.conf
+  2. Verify upstream servers are running
+  3. Check max_fails and fail_timeout settings
+  4. Reset failed state: nginx -s reload
+  5. Check nginx error log for "no live upstreams"
+
+### SSL/TLS Errors
+Cause: Certificate expired, wrong path, or permission issue
+Fix:
+  1. Check cert expiry: openssl x509 -enddate -noout -in /etc/ssl/certs/site.crt
+  2. Renew Let's Encrypt: certbot renew --force-renewal
+  3. Check cert path in nginx config matches actual file
+  4. Verify permissions: ls -la /etc/ssl/certs/site.crt (should be 644)
+  5. After renewal: nginx -t && nginx -s reload
+
+## Rate Limiting Config (add to server block)
+limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+limit_req zone=api burst=20 nodelay;
+
+## Health Check Endpoint (add to server block)
+location /nginx-health {
+    access_log off;
+    return 200 "healthy\n";
+}
+
+## Upstream Health Checks
+upstream backend {
+    server 127.0.0.1:8000 max_fails=3 fail_timeout=30s;
+    server 127.0.0.1:8001 max_fails=3 fail_timeout=30s backup;
+    keepalive 32;
+}
+
+## Performance Tuning
+worker_processes auto;
+worker_connections 4096;
+keepalive_timeout 65;
+gzip on;
+gzip_types text/plain application/json;

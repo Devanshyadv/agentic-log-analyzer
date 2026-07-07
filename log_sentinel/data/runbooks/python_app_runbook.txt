@@ -1,0 +1,99 @@
+PYTHON APPLICATION TROUBLESHOOTING RUNBOOK
+==========================================
+
+## Application Stack
+- Web server: Gunicorn with Uvicorn workers
+- Framework: FastAPI / Flask
+- Database: PostgreSQL via psycopg2 / SQLAlchemy
+- Cache: Redis
+- Process manager: systemd
+
+## Immediate Triage Commands
+
+# Check gunicorn status
+systemctl status gunicorn
+ps aux | grep gunicorn
+
+# Count active gunicorn workers
+ps aux | grep gunicorn | grep worker | wc -l
+
+# Check application health endpoint
+curl -s http://localhost:8000/health | python3 -m json.tool
+
+# Tail application logs
+journalctl -u gunicorn -f --no-pager
+tail -f /var/log/app/app.log
+
+# Check DB connection count (run on DB server)
+psql -U postgres -c "SELECT count(*) FROM pg_stat_activity WHERE datname='appdb';"
+
+# Check Redis memory usage
+redis-cli INFO memory | grep used_memory_human
+
+## Common Issues
+
+### Database Connection Pool Exhaustion
+Symptoms: psycopg2.OperationalError: remaining connection slots reserved
+Diagnosis:
+  1. Check active connections: psql -c "SELECT count(*), state FROM pg_stat_activity GROUP BY state;"
+  2. Find long-running queries: psql -c "SELECT pid, now()-query_start, query FROM pg_stat_activity WHERE state='active' ORDER BY 2 DESC;"
+
+Fix:
+  1. Terminate idle connections: psql -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE state='idle' AND query_start < now()-interval '5 minutes';"
+  2. Restart app to release connections: systemctl restart gunicorn
+  3. Install and configure PgBouncer connection pooler
+  4. Set pool_size in SQLAlchemy: create_engine(url, pool_size=10, max_overflow=5)
+
+### High Memory Usage / Memory Leak
+Symptoms: Workers gradually using more memory, eventually OOMKilled
+Diagnosis:
+  1. Monitor worker memory: watch -n5 'ps aux | grep worker | awk "{print \$6}"'
+  2. Profile with py-spy: pip install py-spy && py-spy top --pid $(pgrep -f gunicorn | head -1)
+  3. Dump memory: python3 -c "import tracemalloc; tracemalloc.start(); ..."
+
+Fix:
+  1. Enable --max-requests in gunicorn: gunicorn --max-requests 1000 --max-requests-jitter 100
+  2. Look for unbounded caches, global dictionaries, circular references
+  3. Use objgraph to find memory leaks: pip install objgraph
+
+### Gunicorn Worker Timeout
+Symptoms: WORKER TIMEOUT (pid:XXXX), 502 responses
+Diagnosis:
+  1. Check timeout setting: grep timeout /etc/gunicorn/config.py
+  2. Find slow requests: grep "slow" /var/log/app/app.log | tail -20
+
+Fix:
+  1. Increase timeout: --timeout 120 (only for legitimate slow operations)
+  2. Find and optimize slow endpoints
+  3. Move slow operations to background tasks (Celery/RQ)
+  4. Consider async workers: --worker-class uvicorn.workers.UvicornWorker
+
+### Worker Restart Procedure
+# Graceful restart (zero downtime)
+kill -HUP $(cat /var/run/gunicorn.pid)
+
+# Or via systemd
+systemctl reload gunicorn
+
+# Force restart if hung
+systemctl restart gunicorn
+
+## Performance Profiling
+# CPU profiling
+py-spy record -o profile.svg --pid $(pgrep -f "gunicorn.*master")
+
+# Request profiling with cProfile
+python3 -m cProfile -s cumulative app.py
+
+## Configuration Best Practices
+# gunicorn.conf.py
+bind = "0.0.0.0:8000"
+workers = 4  # 2 * CPU cores + 1
+worker_class = "uvicorn.workers.UvicornWorker"
+worker_connections = 1000
+max_requests = 1000
+max_requests_jitter = 100
+timeout = 60
+keepalive = 2
+errorlog = "/var/log/app/gunicorn-error.log"
+accesslog = "/var/log/app/gunicorn-access.log"

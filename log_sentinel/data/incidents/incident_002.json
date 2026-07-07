@@ -1,0 +1,12 @@
+{
+  "id": "INC-002",
+  "title": "Redis out-of-memory eviction causing cache stampede",
+  "date": "2025-02-28",
+  "service": "python_app",
+  "severity": "HIGH",
+  "symptoms": "Redis memory usage at 100%. Logs showing: redis.exceptions.ConnectionError: OOM command not allowed when used memory > maxmemory. Cache hit rate dropped from 85% to 3%. Database CPU spiked to 100% due to cache stampede.",
+  "root_cause": "Redis maxmemory was set to 512MB but session data from a marketing campaign grew to 700MB. With allkeys-lru eviction, critical application keys were being evicted. When multiple services tried to repopulate the cache simultaneously, it caused a stampede on the database.",
+  "fix_applied": "1. Increased Redis maxmemory to 2GB. 2. Changed eviction policy to volatile-lru to protect non-expiring keys. 3. Implemented cache stampede protection with probabilistic early expiration. 4. Added Redis memory alerts at 70% threshold.",
+  "time_to_resolve_minutes": 18,
+  "tags": ["redis", "cache", "oom", "memory", "stampede"]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "INC-010",
+  "title": "Network partition between app servers and database",
+  "date": "2025-03-28",
+  "service": "system",
+  "severity": "CRITICAL",
+  "symptoms": "Complete loss of database connectivity from app servers. Errors: psycopg2.OperationalError: could not connect to server: Connection timed out. Error rate 100%. Database server reachable from monitoring but not from app nodes. netstat showing no established DB connections.",
+  "root_cause": "A misconfigured firewall rule update deployed by the infrastructure team blocked port 5432 between the app subnet (10.0.1.0/24) and the database subnet (10.0.2.0/24). The firewall change was applied during a routine security hardening exercise without testing database connectivity.",
+  "fix_applied": "1. Identified partition via: ping 10.0.2.5 from app server (OK) vs telnet 10.0.2.5 5432 (FAIL). 2. Infrastructure team reverted firewall rule via terraform apply. 3. Applications auto-reconnected within 30 seconds. 4. Added automated connectivity checks to deployment pipeline. 5. Created pre/post change validation checklist.",
+  "time_to_resolve_minutes": 19,
+  "tags": ["network", "partition", "firewall", "database", "connectivity"]
+}

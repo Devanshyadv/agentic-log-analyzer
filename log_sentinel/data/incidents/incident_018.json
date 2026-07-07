@@ -1,0 +1,12 @@
+{
+  "id": "INC-018",
+  "title": "S3 permission denied blocking file upload feature",
+  "date": "2025-01-22",
+  "service": "python_app",
+  "severity": "MEDIUM",
+  "symptoms": "Logs: botocore.exceptions.ClientError: An error occurred (AccessDenied) when calling the PutObject operation. All user file uploads returning 403. S3 presigned URL generation working but actual uploads failing. Feature completely broken but no database impact.",
+  "root_cause": "An IAM policy rotation removed the s3:PutObject permission from the application's IAM role. The IAM role ARN changed during a cloud infrastructure migration and the bucket policy still referenced the old ARN. Presigned URLs used a different credential path that was unaffected.",
+  "fix_applied": "1. Identified the issue: aws s3 cp test.txt s3://bucket/ — AccessDenied. 2. Updated IAM role policy to include s3:PutObject, s3:GetObject, s3:DeleteObject. 3. Updated bucket policy to reference new IAM role ARN. 4. Added IAM permission validation to deployment smoke tests. 5. Implemented AWS CloudTrail alerts for AccessDenied on production buckets.",
+  "time_to_resolve_minutes": 20,
+  "tags": ["s3", "iam", "permissions", "access-denied", "aws", "file-upload"]
+}

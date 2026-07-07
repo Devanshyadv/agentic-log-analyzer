@@ -1,0 +1,12 @@
+{
+  "id": "INC-013",
+  "title": "Cron job failure silently dropping nightly reports",
+  "date": "2025-03-11",
+  "service": "system",
+  "severity": "MEDIUM",
+  "symptoms": "No report emails sent for 5 consecutive nights. Cron logs: /usr/bin/python3: No module named report_generator. No error alerts triggered because cron exit code was not monitored. Business team noticed missing reports on day 6.",
+  "root_cause": "The report_generator module was installed in a virtualenv that was not activated in the cron job. After a system Python upgrade from 3.9 to 3.11, the cron job continued using the old Python path /usr/bin/python3 which no longer had the required packages installed.",
+  "fix_applied": "1. Fixed cron entry to use virtualenv Python: /app/venv/bin/python report.py. 2. Added healthcheck: cron job sends heartbeat to monitoring on success. 3. Alert on missing heartbeat after expected run time. 4. Added wrapper script that logs exit code and sends failure alert. 5. Documented virtualenv requirement in runbook.",
+  "time_to_resolve_minutes": 45,
+  "tags": ["cron", "python", "virtualenv", "silent-failure", "monitoring"]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "INC-015",
+  "title": "JWT token expiry bug causing mass authentication failures",
+  "date": "2025-02-05",
+  "service": "python_app",
+  "severity": "HIGH",
+  "symptoms": "Logs: KeyError: 'access_token' in JWT decode. 401 Unauthorized responses spiking to 45% of requests. All users logged out simultaneously at 02:00 UTC. AuthenticationError: Token has expired appearing in logs. Customer support flooded with login complaints.",
+  "root_cause": "A JWT token expiry migration set all existing tokens to expire at Unix timestamp 1738800000 (2025-02-06 00:00:00 UTC). The migration ran at 02:00 UTC server time, instantly invalidating all 240,000 active user sessions. The bulk expiry was not staggered or gradual.",
+  "fix_applied": "1. Deployed emergency fix to extend token validity by 24 hours. 2. Cleared the invalid expiry field from Redis token store. 3. Implemented gradual token migration with random expiry spread over 30 days. 4. Added monitoring for bulk 401 rate increases. 5. Created rollback procedure for token migrations.",
+  "time_to_resolve_minutes": 22,
+  "tags": ["jwt", "authentication", "token-expiry", "migration", "session"]
+}

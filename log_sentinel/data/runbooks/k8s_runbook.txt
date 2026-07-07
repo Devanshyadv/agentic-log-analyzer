@@ -1,0 +1,117 @@
+KUBERNETES TROUBLESHOOTING RUNBOOK
+===================================
+
+## Namespace Context
+# Set default namespace
+kubectl config set-context --current --namespace=production
+
+## Immediate Triage Commands
+
+# Get overview of pod health
+kubectl get pods -A | grep -v Running | grep -v Completed
+
+# Check recent events (most useful for incidents)
+kubectl get events --sort-by='.lastTimestamp' -n production | tail -30
+
+# Describe a specific failing pod
+kubectl describe pod <pod-name> -n production
+
+# Get pod logs
+kubectl logs <pod-name> -n production --tail=100
+kubectl logs <pod-name> -n production --previous  # if pod restarted
+
+# Follow logs in real time
+kubectl logs -f <pod-name> -n production
+
+# Check resource usage
+kubectl top pods -n production
+kubectl top nodes
+
+## Common Issues
+
+### CrashLoopBackOff
+Symptoms: Pod continuously restarting, status shows CrashLoopBackOff
+Diagnosis:
+  1. kubectl logs <pod> --previous (check last run's logs)
+  2. kubectl describe pod <pod> (check Events section for exit code)
+  3. Exit code 1: application error (check logs)
+  4. Exit code 137: OOMKilled (check memory limits)
+  5. Exit code 139: Segfault (check for binary/dependency issue)
+
+Fix:
+  1. For missing env var: kubectl edit deployment <name> and add env var
+  2. For OOMKill: kubectl edit deployment <name> and increase memory limit
+  3. For config error: fix ConfigMap and rollout restart
+  4. kubectl rollout restart deployment/<name>
+
+### OOMKilled Pod
+Symptoms: Container killed, status OOMKilled, exit code 137
+Diagnosis:
+  1. kubectl describe pod <pod> | grep -A5 "OOMKilled"
+  2. kubectl top pod <pod> --containers
+  3. Check Limits vs Requests: kubectl get pod <pod> -o yaml | grep -A4 resources
+
+Fix:
+  1. Increase memory limit: kubectl edit deployment <name>
+     resources:
+       limits:
+         memory: "1Gi"  # was 512Mi
+       requests:
+         memory: "512Mi"
+  2. kubectl rollout restart deployment/<name>
+  3. Investigate memory leak in application code
+
+### Pod Stuck in Pending State
+Symptoms: Pod shows Pending for more than 2 minutes
+Diagnosis:
+  1. kubectl describe pod <pod> | grep -A10 Events
+  2. Insufficient resources: "Insufficient cpu" or "Insufficient memory"
+  3. Node selector mismatch: check nodeSelector and taints/tolerations
+  4. PVC not bound: kubectl get pvc -n production
+
+Fix:
+  1. For resource constraints: kubectl describe nodes | grep Allocatable
+  2. Scale up nodes or reduce resource requests
+  3. For PVC issues: kubectl describe pvc <name>
+
+### Image Pull Error
+Symptoms: ErrImagePull or ImagePullBackOff
+Diagnosis:
+  kubectl describe pod <pod> | grep -A5 "Failed"
+
+Fix:
+  1. Check image name/tag: kubectl get deployment <name> -o yaml | grep image
+  2. Verify registry credentials: kubectl get secret regcred -n production
+  3. Pull image manually to test: docker pull <image>:<tag>
+  4. Update image pull secret if credentials rotated
+
+## Rollout Management
+# Check rollout status
+kubectl rollout status deployment/<name>
+
+# Rollback to previous version
+kubectl rollout undo deployment/<name>
+
+# Rollback to specific revision
+kubectl rollout history deployment/<name>
+kubectl rollout undo deployment/<name> --to-revision=2
+
+# Scale deployment
+kubectl scale deployment/<name> --replicas=5
+
+## Resource Quota and Limits
+# Check namespace quotas
+kubectl describe resourcequota -n production
+
+# Get all resource limits across pods
+kubectl get pods -n production -o custom-columns='NAME:.metadata.name,CPU_REQ:.spec.containers[*].resources.requests.cpu,MEM_REQ:.spec.containers[*].resources.requests.memory,MEM_LIM:.spec.containers[*].resources.limits.memory'
+
+## Node Drain (for maintenance)
+# Cordon node (no new pods)
+kubectl cordon <node-name>
+
+# Drain node (evict pods gracefully)
+kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data
+
+# Uncordon after maintenance
+kubectl uncordon <node-name>

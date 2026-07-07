@@ -1,0 +1,12 @@
+{
+  "id": "INC-003",
+  "title": "Kafka consumer lag causing order processing delays",
+  "date": "2025-04-02",
+  "service": "python_app",
+  "severity": "HIGH",
+  "symptoms": "Kafka consumer group 'order-processor' lag reached 450,000 messages. Order confirmation emails delayed by 4+ hours. Logs showing: KafkaTimeoutError: Request timed out after 30000 ms. Consumer throughput dropped from 5000 msg/s to 200 msg/s.",
+  "root_cause": "A schema validation bug introduced in the latest deployment caused 60% of messages to fail deserialization. The consumer was retrying failed messages indefinitely instead of sending them to the dead-letter queue. This caused the consumer to bottleneck on a single partition.",
+  "fix_applied": "1. Rolled back deployment to previous version. 2. Implemented dead-letter queue for messages failing 3x deserialization. 3. Added consumer lag monitoring alert at 10,000 messages. 4. Fixed schema validation to be forward-compatible.",
+  "time_to_resolve_minutes": 41,
+  "tags": ["kafka", "consumer-lag", "schema", "dead-letter-queue", "serialization"]
+}

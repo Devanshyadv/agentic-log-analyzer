@@ -1,0 +1,12 @@
+{
+  "id": "INC-001",
+  "title": "Database connection pool exhaustion",
+  "date": "2025-03-15",
+  "service": "python_app",
+  "severity": "CRITICAL",
+  "symptoms": "Error rate jumped to 60%. Logs flooding with: psycopg2.OperationalError: FATAL: remaining connection slots are reserved for non-replication superuser connections. P99 latency > 10s. All API endpoints returning 503.",
+  "root_cause": "Sudden traffic spike caused all 20 DB connections to be held open simultaneously. A slow unindexed JOIN query on the orders-users table was holding connections for 8-12 seconds each, preventing release. No connection pooler was in place.",
+  "fix_applied": "1. Restarted application servers to release held connections. 2. Deployed PgBouncer connection pooler in transaction mode. 3. Added composite index on orders(user_id, created_at). 4. Set statement_timeout=5s in PostgreSQL config.",
+  "time_to_resolve_minutes": 23,
+  "tags": ["database", "connection-pool", "postgres", "performance", "query-optimization"]
+}

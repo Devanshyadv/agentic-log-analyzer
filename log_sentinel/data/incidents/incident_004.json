@@ -1,0 +1,12 @@
+{
+  "id": "INC-004",
+  "title": "Nginx upstream timeout causing 504 Gateway Timeout storm",
+  "date": "2025-03-22",
+  "service": "nginx",
+  "severity": "HIGH",
+  "symptoms": "Nginx error logs flooded with: upstream timed out (110: Connection timed out) while reading response header from upstream. 504 error rate reached 35%. All upstream app servers showing healthy in health checks but response times at 45s.",
+  "root_cause": "A background batch job consuming 100% CPU on all app server cores was starving the web workers. Nginx proxy_read_timeout was set to 30s but app processing was taking 45s. The health checks only verified TCP connectivity, not actual response time.",
+  "fix_applied": "1. Killed the runaway batch job. 2. Moved batch processing to dedicated worker nodes with CPU limits. 3. Increased proxy_read_timeout to 60s as interim fix. 4. Implemented health checks with actual endpoint response validation. 5. Added CPU-based circuit breaker.",
+  "time_to_resolve_minutes": 15,
+  "tags": ["nginx", "504", "upstream-timeout", "cpu", "batch-job"]
+}

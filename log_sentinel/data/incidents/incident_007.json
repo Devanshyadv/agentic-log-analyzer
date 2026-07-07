@@ -1,0 +1,12 @@
+{
+  "id": "INC-007",
+  "title": "Disk 100% full causing write failures across services",
+  "date": "2025-02-10",
+  "service": "system",
+  "severity": "CRITICAL",
+  "symptoms": "OSError: [Errno 28] No space left on device. Log rotation stopped. Database WAL writes failing: PostgreSQL FATAL: could not write to file pg_wal. Application health checks failing. 70% of API requests returning 500. df -h shows /var at 100%.",
+  "root_cause": "Application debug logging was left enabled in production after a troubleshooting session. DEBUG level logs were generating 2GB/hour compared to normal 50MB/hour. Log rotation was configured for daily rotation but max size was not configured. /var/log filled in 12 hours.",
+  "fix_applied": "1. Removed largest log files under /var/log/app/debug-*. 2. Restarted application with LOG_LEVEL=INFO. 3. Configured logrotate with size-based rotation: maxsize 500M. 4. Added disk usage monitoring alert at 80%. 5. Set application log retention to 7 days.",
+  "time_to_resolve_minutes": 8,
+  "tags": ["disk-full", "logging", "debug-mode", "logrotate", "storage"]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "INC-005",
+  "title": "Kubernetes pod OOMKilled causing cascading restarts",
+  "date": "2025-04-18",
+  "service": "kubernetes",
+  "severity": "CRITICAL",
+  "symptoms": "K8s events: OOMKilled: Container exceeded memory limit 512Mi. Pod restart count reached 47 in 30 minutes. CrashLoopBackOff on 8 of 10 api-pod replicas. 502 error rate at 80%. Logs: Warning default/api-pod-7f8b OOMKilling: Container killed.",
+  "root_cause": "A memory leak in the image processing library (Pillow 9.x) caused each request handling a large image to retain 50MB of memory. Under sustained traffic, each pod grew to 2GB before OOMKill. The memory leak was introduced with a silent dependency upgrade.",
+  "fix_applied": "1. Scaled down to 2 replicas and disabled image processing endpoint. 2. Pinned Pillow version to 8.4.0 (known-good). 3. Increased pod memory limit to 1.5Gi as interim. 4. Added memory profiling with py-spy in staging. 5. Implemented automatic pod recycling every 6 hours.",
+  "time_to_resolve_minutes": 35,
+  "tags": ["kubernetes", "oomkilled", "memory-leak", "pillow", "crashloopbackoff"]
+}

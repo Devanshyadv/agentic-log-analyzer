@@ -1,0 +1,12 @@
+{
+  "id": "INC-008",
+  "title": "Python memory leak in request handler causing gradual degradation",
+  "date": "2025-03-05",
+  "service": "python_app",
+  "severity": "HIGH",
+  "symptoms": "Memory usage on app servers growing steadily from 200MB to 1.8GB over 6 hours. Response times gradually increasing. Workers eventually killed by OOMKiller. Logs: WARNING Memory usage at 89% — consider restarting workers. No error spikes until workers die.",
+  "root_cause": "A Python dictionary used as a global LRU cache was not properly bounded. The cache grew without limit because the cache key included request timestamps, making every request a cache miss that added a new entry. After 6 hours: 2 million unique entries consuming 1.6GB.",
+  "fix_applied": "1. Restarted gunicorn workers: kill -HUP $(cat gunicorn.pid). 2. Replaced custom dict cache with functools.lru_cache(maxsize=10000). 3. Added explicit cache size limits. 4. Implemented py-spy memory profiling in staging environment. 5. Set gunicorn --max-requests 1000 as safety net.",
+  "time_to_resolve_minutes": 28,
+  "tags": ["memory-leak", "python", "gunicorn", "lru-cache", "gradual-degradation"]
+}

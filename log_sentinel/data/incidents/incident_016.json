@@ -1,0 +1,12 @@
+{
+  "id": "INC-016",
+  "title": "File descriptor limit reached causing connection refused errors",
+  "date": "2025-03-18",
+  "service": "python_app",
+  "severity": "CRITICAL",
+  "symptoms": "Logs: OSError: [Errno 24] Too many open files. New HTTP connections failing with Connection refused. Application logs: socket.error: [Errno 24] Too many open files. cat /proc/$(pidof gunicorn)/limits shows max 1024 open files. lsof count: 1024.",
+  "root_cause": "Connection objects to Redis and PostgreSQL were not being properly closed in exception handlers. Each unhandled exception in the request pipeline left a socket file descriptor open. Over 8 hours under normal traffic, the process accumulated 1024 open file descriptors (the default ulimit).",
+  "fix_applied": "1. Restarted gunicorn to clear descriptors. 2. Fixed all connection cleanup: used context managers (with db.connect() as conn:). 3. Increased system ulimit to 65536: ulimit -n 65536 in /etc/security/limits.conf. 4. Added fd monitoring: alert when process fd count > 800. 5. Used connection pool with explicit timeout and cleanup.",
+  "time_to_resolve_minutes": 16,
+  "tags": ["file-descriptors", "ulimit", "connection-leak", "gunicorn", "resource-exhaustion"]
+}

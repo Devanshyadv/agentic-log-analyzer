@@ -1,0 +1,12 @@
+{
+  "id": "INC-012",
+  "title": "Docker container crash loop from missing environment variable",
+  "date": "2025-04-25",
+  "service": "kubernetes",
+  "severity": "HIGH",
+  "symptoms": "K8s events: Back-off restarting failed container. CrashLoopBackOff on 6 pods. Container logs: KeyError: 'DATABASE_URL'. Restart count 127 in 45 minutes. Deployment rollout stuck. kubectl describe pod showing: Exit Code 1 immediately on start.",
+  "root_cause": "A new required environment variable DATABASE_URL was added to the application code but was not added to the Kubernetes deployment manifest or the secrets configuration. The container started, immediately tried to read the variable, threw an unhandled KeyError, and exited.",
+  "fix_applied": "1. Added DATABASE_URL to Kubernetes Secret: kubectl create secret generic app-secrets. 2. Updated deployment manifest to reference the secret as envFrom. 3. Applied: kubectl rollout restart deployment/api. 4. Added startup validation to check all required env vars exist. 5. Updated deployment checklist to include env var verification.",
+  "time_to_resolve_minutes": 11,
+  "tags": ["kubernetes", "crashloopbackoff", "environment-variable", "configuration", "secrets"]
+}

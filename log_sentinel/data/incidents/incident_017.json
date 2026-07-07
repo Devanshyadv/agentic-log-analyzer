@@ -1,0 +1,12 @@
+{
+  "id": "INC-017",
+  "title": "Thread pool exhaustion causing request queue buildup",
+  "date": "2025-04-05",
+  "service": "python_app",
+  "severity": "HIGH",
+  "symptoms": "Logs: concurrent.futures.ThreadPoolExecutor: thread pool exhausted. Request processing queue depth: 5000. P99 response time: 45s. Logs showing requests waiting 30+ seconds before any processing begins. Error rate steady at 25% from timeouts.",
+  "root_cause": "The thread pool was configured with max_workers=10. Each thread was blocked waiting on a slow third-party geolocation API that averaged 12s response time. All 10 threads were permanently occupied waiting for geolocation responses, with new requests queuing indefinitely.",
+  "fix_applied": "1. Set geolocation API timeout to 2s with fallback to IP country lookup. 2. Implemented async geolocation calls using asyncio.gather. 3. Added in-memory geolocation cache with 1-hour TTL. 4. Increased thread pool to max_workers=50 as interim. 5. Added thread pool queue depth monitoring.",
+  "time_to_resolve_minutes": 25,
+  "tags": ["thread-pool", "blocking-io", "geolocation", "async", "queue-depth"]
+}
